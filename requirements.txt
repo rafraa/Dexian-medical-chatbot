@@ -1,0 +1,4 @@
+qdrant-client>=1.13,<2
+pypdf>=5,<7
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
