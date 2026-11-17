@@ -71,9 +71,10 @@ def create_conversation(
 
 @router.get("/conversations", response_model=list[ConversationSummary])
 def list_conversations() -> list[ConversationSummary]:
+	store = get_conversation_store()
 	return [
 		ConversationSummary(**conversation)
-		for conversation in get_conversation_store().list_conversations()
+		for conversation in store.list_conversations()
 	]
 
 

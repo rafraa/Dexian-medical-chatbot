@@ -178,6 +178,49 @@ def test_chat_history_is_persistent_and_isolated_per_conversation(
 	assert len(other.json()["messages"]) == 2
 
 
+def test_listing_empty_conversation_does_not_break_its_first_message(
+	monkeypatch,
+	tmp_path,
+) -> None:
+	store = ConversationStore(tmp_path / "chat_history.sqlite3")
+	empty = store.create_conversation("Empty draft")
+	used = store.create_conversation("Used chat")
+	store.append_exchange(
+		used["id"],
+		"My shoulder hurts.",
+		"Where exactly?",
+		[],
+		False,
+		"",
+		0,
+	)
+	monkeypatch.setattr(routes, "get_conversation_store", lambda: store)
+	monkeypatch.setattr(routes, "retrieve_guidelines", lambda *args, **kwargs: [])
+	monkeypatch.setattr(
+		routes,
+		"generate_grounded_answer",
+		lambda *args, **kwargs: "A grounded answer.",
+	)
+
+	response = send_request("GET", "/api/conversations")
+
+	assert response.status_code == 200
+	assert {conversation["id"] for conversation in response.json()} == {
+		empty["id"],
+		used["id"],
+	}
+	first_message = send_request(
+		"POST",
+		f"/api/conversations/{empty['id']}/messages",
+		{"question": "Can I start this chat?"},
+	)
+	assert first_message.status_code == 200
+	assert store.get_conversation(empty["id"])["messages"][0]["content"] == (
+		"Can I start this chat?"
+	)
+	assert store.get_conversation(used["id"]) is not None
+
+
 def test_chat_sources_are_shown_only_when_requested(monkeypatch, tmp_path) -> None:
 	store = ConversationStore(tmp_path / "chat_history.sqlite3")
 	monkeypatch.setattr(routes, "get_conversation_store", lambda: store)
